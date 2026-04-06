@@ -706,7 +706,12 @@ function applyStartsAndChain(
     }
 
     // 2. Chain: if this slot is completed and the next slot is stacked,
-    //    shift the next slot to start at completionTime + buffer.
+    //    shift the next slot to start at completionTime + buffer — but only
+    //    if the completion happened during or after the slot's countdown
+    //    (i.e. the countdown was running). If the chore was completed before
+    //    its countdown started (e.g. marked done from the chores list), the
+    //    normal afterDelay placement already accounts for the completion
+    //    timestamp, so we don't override it with a buffer-only chain.
     if (i < slots.length - 1) {
       const next = slots[i + 1];
       const packerStacked = slot.targetEndMs + bufferMs === next.targetStartMs;
@@ -716,8 +721,11 @@ function applyStartsAndChain(
       const completionStr = chore?.memberCompletions[personId];
       if (completionStr) {
         const completionMs = new Date(completionStr).getTime();
-        next.startMs = completionMs + bufferMs;
-        next.endMs = next.startMs + next.durationSecs * 1000;
+        const completedDuringCountdown = completionMs >= slot.startMs;
+        if (completedDuringCountdown) {
+          next.startMs = completionMs + bufferMs;
+          next.endMs = next.startMs + next.durationSecs * 1000;
+        }
       }
     }
   }

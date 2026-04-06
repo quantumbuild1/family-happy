@@ -718,9 +718,15 @@ describe('chore-countdown-engine', () => {
             expect(dishes.countdownEndMs).toBe(dishes.targetEndMs);
         });
 
-        it('chains through a 3-chore stack when first two are completed', () => {
+        it('chains through a 3-chore stack when first two are completed during countdown', () => {
             // A → B → C, all stacked with 15s buffer, deadline 09:00.
-            // Each 60s. Packing: C ends at 09:00, B before C, A before B.
+            // Each 60s. Packing (right-to-left):
+            //   C: 08:59:00–09:00:00
+            //   B: 08:57:45–08:58:45
+            //   A: 08:56:30–08:57:30
+            //
+            // A completes at 08:57:00 (during its countdown) → B chains at 08:57:15
+            // B completes at 08:57:45 (during its chained countdown) → C chains at 08:58:00
             const chores = [
                 makeChoreInput({
                     id: 'c',
@@ -732,7 +738,7 @@ describe('chore-countdown-engine', () => {
                     estimatedDurationSecs: 60,
                     sortOrder: 1,
                     memberCompletions: {
-                        'person-a': '2026-03-31T08:56:30', // completed
+                        'person-a': '2026-03-31T08:57:45',
                     },
                 }),
                 makeChoreInput({
@@ -740,7 +746,7 @@ describe('chore-countdown-engine', () => {
                     estimatedDurationSecs: 60,
                     sortOrder: 0,
                     memberCompletions: {
-                        'person-a': '2026-03-31T08:55:00', // completed early
+                        'person-a': '2026-03-31T08:57:00',
                     },
                 }),
             ];
@@ -748,14 +754,13 @@ describe('chore-countdown-engine', () => {
             const result = computeCountdownTimelines(
                 makeInput(chores, {
                     countdownSettings: { ...DEFAULT_COUNTDOWN_SETTINGS, stackBufferSecs: 15 },
-                    now: new Date('2026-03-31T08:57:00'),
+                    now: new Date('2026-03-31T08:58:00'),
                 }),
             );
             const slotC = result.timelines['person-a'].slots.find((s) => s.choreId === 'c')!;
 
-            // A completed at 08:55:00 → B chains at 08:55:15.
-            // B completed at 08:56:30 → C chains at 08:56:45.
-            const bCompletedMs = new Date('2026-03-31T08:56:30').getTime();
+            // B completed at 08:57:45 → C chains at 08:58:00.
+            const bCompletedMs = new Date('2026-03-31T08:57:45').getTime();
             expect(slotC.countdownStartMs).toBe(bCompletedMs + 15_000);
             expect(slotC.countdownEndMs).toBe(bCompletedMs + 15_000 + 60_000);
         });
@@ -784,10 +789,11 @@ describe('chore-countdown-engine', () => {
             expect(slot.state).toBe('completed');
         });
 
-        it('after_chore chains with buffer (not afterDelay) when anchor completes', () => {
-            // Chore A (after_time 08:00, 5 min) completes early.
-            // Chore B (after_chore anchored to A, 5 min) should chain at
-            // completionTime + buffer, not at A's anchor time + afterDelay.
+        it('after_chore chains with buffer (not afterDelay) when anchor completes during countdown', () => {
+            // Chore A (after_time 08:00, 5 min duration, afterDelay 5 min)
+            // → target: 08:05–08:10. Completed at 08:08 (during countdown).
+            // Chore B (after_chore anchored to A) should chain at
+            // completionTime + buffer (not afterDelay).
             const choreA = makeChoreInput({
                 id: 'chore-a',
                 title: 'Chore A',
@@ -796,7 +802,7 @@ describe('chore-countdown-engine', () => {
                 timingConfig: { mode: 'after_time', time: '08:00' },
                 sortOrder: 0,
                 memberCompletions: {
-                    'person-a': '2026-03-31T08:03:00', // completed 2 min early
+                    'person-a': '2026-03-31T08:08:00', // completed during countdown
                 },
             });
             const choreB = makeChoreInput({
@@ -812,8 +818,66 @@ describe('chore-countdown-engine', () => {
             });
             const chores = [choreA, choreB];
 
-            // allChoresRaw needs completions for the timing resolver to find
-            // chore A's completion moment (used as the after_chore anchor).
+            const allChoresRaw = chores.map((c) => {
+                const like = makeChoreLike(c);
+                if (c.id === 'chore-a') {
+                    like.completions = [{
+                        completed: true,
+                        dateDue: '2026-03-31',
+                        dateCompleted: '2026-03-31T08:08:00',
+                    }];
+                }
+                return like;
+            });
+
+            const result = computeCountdownTimelines(
+                makeInput(chores, {
+                    allChoresRaw,
+                    countdownSettings: {
+                        ...DEFAULT_COUNTDOWN_SETTINGS,
+                        stackBufferSecs: 15,
+                        afterAnchorDefaultDelaySecs: 300,
+                    },
+                    now: new Date('2026-03-31T08:09:00'),
+                }),
+            );
+            const slotB = result.timelines['person-a'].slots.find((s) => s.choreId === 'chore-b')!;
+
+            const completedMs = new Date('2026-03-31T08:08:00').getTime();
+            expect(slotB.countdownStartMs).toBe(completedMs + 15_000);
+            expect(slotB.countdownEndMs).toBe(completedMs + 15_000 + 300_000);
+        });
+
+        it('after_chore uses afterDelay (not buffer) when anchor completed before countdown', () => {
+            // Chore A (after_time 08:00, 5 min duration, afterDelay 5 min)
+            // → target: 08:05–08:10. Completed at 08:03 (BEFORE countdown
+            // started — done from chores list). The timing resolver places
+            // chore B at completionTime + afterDelay. The engine should NOT
+            // override that with buffer-only chaining.
+            const choreA = makeChoreInput({
+                id: 'chore-a',
+                title: 'Chore A',
+                estimatedDurationSecs: 300,
+                timingMode: 'after_time',
+                timingConfig: { mode: 'after_time', time: '08:00' },
+                sortOrder: 0,
+                memberCompletions: {
+                    'person-a': '2026-03-31T08:03:00', // before countdown started
+                },
+            });
+            const choreB = makeChoreInput({
+                id: 'chore-b',
+                title: 'Chore B',
+                estimatedDurationSecs: 300,
+                timingMode: 'after_chore',
+                timingConfig: {
+                    mode: 'chore_anchor',
+                    anchor: { relation: 'after', sourceChoreId: 'chore-a' },
+                },
+                sortOrder: 1,
+            });
+            const chores = [choreA, choreB];
+
             const allChoresRaw = chores.map((c) => {
                 const like = makeChoreLike(c);
                 if (c.id === 'chore-a') {
@@ -832,18 +896,17 @@ describe('chore-countdown-engine', () => {
                     countdownSettings: {
                         ...DEFAULT_COUNTDOWN_SETTINGS,
                         stackBufferSecs: 15,
-                        afterAnchorDefaultDelaySecs: 300, // 5 min delay normally
+                        afterAnchorDefaultDelaySecs: 300,
                     },
                     now: new Date('2026-03-31T08:04:00'),
                 }),
             );
             const slotB = result.timelines['person-a'].slots.find((s) => s.choreId === 'chore-b')!;
 
-            // Should chain from completion (08:03:00) + 15s buffer, NOT from
-            // the target start which includes the 5-min afterDelay.
-            const completedMs = new Date('2026-03-31T08:03:00').getTime();
-            expect(slotB.countdownStartMs).toBe(completedMs + 15_000);
-            expect(slotB.countdownEndMs).toBe(completedMs + 15_000 + 300_000);
+            // Chore B should use the timing resolver's placement (afterDelay),
+            // NOT the buffer-only chain. Target start stays as placed.
+            expect(slotB.countdownStartMs).toBe(slotB.targetStartMs);
+            expect(slotB.countdownEndMs).toBe(slotB.targetEndMs);
         });
     });
 
