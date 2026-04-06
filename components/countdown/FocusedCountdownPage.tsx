@@ -42,6 +42,7 @@ import {
     TrendingDown,
     Minus,
     Play,
+    Square,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -191,6 +192,7 @@ export default function FocusedCountdownPage() {
             taskSeries: { tasks: {} },
         },
         routineMarkerStatuses: {},
+        choreManualStarts: {},
         settings: {
             $: {
                 where: {
@@ -231,30 +233,22 @@ export default function FocusedCountdownPage() {
     const [activeCollision, setActiveCollision] = useState<CountdownCollision | null>(null);
     const [celebratingSlotKey, setCelebratingSlotKey] = useState<string | null>(null);
     const celebrationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    /**
-     * Map of choreId → ISO timestamp when the user clicked "Start Now". Persisted
-     * per family-day in localStorage so a page refresh (or navigating away and
-     * back) doesn't lose the manual start. The engine's chain-shift pass uses
-     * these to move the chore's effective start earlier and propagate the
-     * offset to any chained successors.
-     */
-    const [manualStarts, setManualStarts] = useState<Record<string, string>>({});
+
+    // Build manualStarts map from InstantDB query results.
+    const manualStarts: Record<string, string> = useMemo(() => {
+        const map: Record<string, string> = {};
+        for (const ms of (data?.choreManualStarts as any[]) || []) {
+            if (ms.date === todayKey) {
+                map[ms.choreId] = ms.startedAt;
+            }
+        }
+        return map;
+    }, [data?.choreManualStarts, todayKey]);
 
     // Sync auto-complete default from settings
     useEffect(() => {
         setAutoComplete(countdownSettings.autoMarkCompleteOnCountdownEnd);
     }, [countdownSettings.autoMarkCompleteOnCountdownEnd]);
-
-    // Load manualStarts for the current family-day from localStorage.
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
-        try {
-            const raw = window.localStorage.getItem(`manualStarts:${todayKey}`);
-            setManualStarts(raw ? (JSON.parse(raw) as Record<string, string>) : {});
-        } catch {
-            setManualStarts({});
-        }
-    }, [todayKey]);
 
     // Tick every second
     useEffect(() => {
@@ -453,7 +447,7 @@ export default function FocusedCountdownPage() {
     const handleMarkDone = useCallback(
         async (choreId: string, personId: string) => {
             const slotKey = `${choreId}:${personId}`;
-            const now = new Date().toISOString();
+            const nowIso = new Date().toISOString();
             const dateKey = todayKey;
 
             // Trigger celebration animation
@@ -470,7 +464,7 @@ export default function FocusedCountdownPage() {
                         .update({
                             completed: true,
                             dateDue: dateKey,
-                            dateCompleted: now,
+                            dateCompleted: nowIso,
                             allowanceAwarded: false,
                         })
                         .link({ chore: choreId, completedBy: personId }),
@@ -483,25 +477,52 @@ export default function FocusedCountdownPage() {
     );
 
     // --- Start Now handler ---
-    // Sets a manual start timestamp (now) for the given chore. The engine's
-    // chain-shift pass picks this up and pulls the chore (and any chained
-    // successors) earlier in the schedule.
+    // Creates a manual start in InstantDB for the given chore at the current
+    // time. The engine applies this to shift the chore's effective start
+    // earlier. No buffer is applied — the chore starts immediately.
     const handleStartNow = useCallback(
-        (choreId: string) => {
+        async (choreId: string) => {
+            if (!selectedPersonId) return;
             const nowIso = new Date().toISOString();
-            setManualStarts((prev) => {
-                const next = { ...prev, [choreId]: nowIso };
-                if (typeof window !== 'undefined') {
-                    try {
-                        window.localStorage.setItem(`manualStarts:${todayKey}`, JSON.stringify(next));
-                    } catch {
-                        /* ignore quota / privacy-mode errors */
-                    }
-                }
-                return next;
-            });
+            try {
+                const manualStartId = id();
+                await db.transact([
+                    tx.choreManualStarts[manualStartId]
+                        .update({
+                            choreId,
+                            familyMemberId: selectedPersonId,
+                            date: todayKey,
+                            startedAt: nowIso,
+                        })
+                        .link({ chore: choreId, familyMember: selectedPersonId }),
+                ]);
+            } catch (err) {
+                console.error('Failed to start chore:', err);
+            }
         },
-        [todayKey],
+        [todayKey, selectedPersonId],
+    );
+
+    // --- Stop handler ---
+    // Clears all manual starts for the current person and date, reverting
+    // all uncompleted chores to their original target times.
+    const handleStop = useCallback(
+        async () => {
+            if (!selectedPersonId) return;
+            const toDelete = ((data?.choreManualStarts as any[]) || []).filter(
+                (ms: any) =>
+                    ms.date === todayKey && ms.familyMemberId === selectedPersonId,
+            );
+            if (toDelete.length === 0) return;
+            try {
+                await db.transact(
+                    toDelete.map((ms: any) => tx.choreManualStarts[ms.id].delete()),
+                );
+            } catch (err) {
+                console.error('Failed to clear manual starts:', err);
+            }
+        },
+        [todayKey, selectedPersonId, data?.choreManualStarts],
     );
 
     // --- Auto-complete effect ---
@@ -973,50 +994,66 @@ export default function FocusedCountdownPage() {
                         )}
                     </div>
 
-                    {/* Primary action button */}
-                    {focusIsUpcoming ? (
-                        <Button
-                            size="lg"
-                            onClick={() => {
-                                if (focusSlot) handleStartNow(focusSlot.choreId);
-                            }}
-                            className="w-full max-w-xs rounded-2xl bg-white/90 py-6 text-base font-bold text-slate-900 shadow-xl shadow-white/20 transition-all hover:bg-white"
-                        >
-                            <span className="flex items-center gap-2">
-                                <Play className="h-5 w-5 fill-current" />
-                                Start Now
-                            </span>
-                        </Button>
-                    ) : (
-                        <Button
-                            size="lg"
-                            onClick={() => {
-                                if (focusSlot && selectedPersonId) {
-                                    handleMarkDone(focusSlot.choreId, selectedPersonId);
-                                }
-                            }}
-                            disabled={focusTimerState === 'celebrating'}
-                            className={cn(
-                                'w-full max-w-xs rounded-2xl py-6 text-base font-bold shadow-xl transition-all',
-                                focusTimerState === 'overdue'
-                                    ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/30'
-                                    : focusTimerState === 'celebrating'
-                                      ? 'bg-emerald-500 text-white shadow-emerald-500/30'
-                                      : focusTimerState === 'active'
-                                        ? 'bg-white/90 hover:bg-white text-slate-900 shadow-white/20'
-                                        : 'bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm',
-                            )}
-                        >
-                            {focusTimerState === 'celebrating' ? (
+                    {/* Action buttons */}
+                    <div className="flex w-full max-w-xs flex-col gap-2">
+                        {focusIsUpcoming ? (
+                            <Button
+                                size="lg"
+                                onClick={() => {
+                                    if (focusSlot) handleStartNow(focusSlot.choreId);
+                                }}
+                                className="w-full rounded-2xl bg-white/90 py-6 text-base font-bold text-slate-900 shadow-xl shadow-white/20 transition-all hover:bg-white"
+                            >
                                 <span className="flex items-center gap-2">
-                                    <Check className="h-5 w-5" />
-                                    Done!
+                                    <Play className="h-5 w-5 fill-current" />
+                                    Start Now
                                 </span>
-                            ) : (
-                                'Mark Done'
-                            )}
-                        </Button>
-                    )}
+                            </Button>
+                        ) : (
+                            <Button
+                                size="lg"
+                                onClick={() => {
+                                    if (focusSlot && selectedPersonId) {
+                                        handleMarkDone(focusSlot.choreId, selectedPersonId);
+                                    }
+                                }}
+                                disabled={focusTimerState === 'celebrating'}
+                                className={cn(
+                                    'w-full rounded-2xl py-6 text-base font-bold shadow-xl transition-all',
+                                    focusTimerState === 'overdue'
+                                        ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/30'
+                                        : focusTimerState === 'celebrating'
+                                          ? 'bg-emerald-500 text-white shadow-emerald-500/30'
+                                          : focusTimerState === 'active'
+                                            ? 'bg-white/90 hover:bg-white text-slate-900 shadow-white/20'
+                                            : 'bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm',
+                                )}
+                            >
+                                {focusTimerState === 'celebrating' ? (
+                                    <span className="flex items-center gap-2">
+                                        <Check className="h-5 w-5" />
+                                        Done!
+                                    </span>
+                                ) : (
+                                    'Mark Done'
+                                )}
+                            </Button>
+                        )}
+                        {/* Stop button — visible only when ahead, reverts to target times */}
+                        {cumulativeDelta > 0 && !focusIsUpcoming && (
+                            <Button
+                                size="lg"
+                                variant="ghost"
+                                onClick={handleStop}
+                                className="w-full rounded-2xl py-4 text-sm font-medium text-white/60 transition-all hover:bg-white/10 hover:text-white/80"
+                            >
+                                <span className="flex items-center gap-2">
+                                    <Square className="h-4 w-4" />
+                                    Stop — revert to schedule
+                                </span>
+                            </Button>
+                        )}
+                    </div>
                 </div>
             )}
         </div>

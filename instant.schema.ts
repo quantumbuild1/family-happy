@@ -3,7 +3,7 @@
 import { i } from '@instantdb/react';
 
 const _schema = i.schema({
-    // We inferred 17 attributes!
+    // We inferred 19 attributes!
     // Take a look at this schema, and if everything looks good,
     // run `push schema` again to enforce the types.
     entities: {
@@ -43,6 +43,17 @@ const _schema = i.schema({
             description: i.string(),
             transactionType: i.string(),
             updatedAt: i.string(),
+        }),
+        announcements: i.entity({
+            archivedAt: i.string().indexed().optional(),
+            createdAt: i.string().indexed(),
+            createdByFamilyMemberId: i.string().indexed().optional(),
+            expiresAt: i.string().indexed().optional(),
+            isActive: i.boolean().indexed(),
+            linkUrl: i.string().optional(),
+            richTextContent: i.string().optional(),
+            title: i.string(),
+            updatedAt: i.string().indexed(),
         }),
         calculatedAllowancePeriods: i.entity({
             calculatedAmount: i.number(),
@@ -184,6 +195,12 @@ const _schema = i.schema({
             dateDue: i.string(),
             notDone: i.boolean().optional(),
         }),
+        choreManualStarts: i.entity({
+            choreId: i.string().indexed(),
+            date: i.string().indexed(),
+            familyMemberId: i.string().indexed(),
+            startedAt: i.string(),
+        }),
         chores: i.entity({
             advanceCompletionLimit: i.any().optional(),
             allowExtraDays: i.any().optional(),
@@ -194,8 +211,8 @@ const _schema = i.schema({
             description: i.string().optional(),
             difficultyRating: i.any().optional(),
             done: i.boolean(),
-            estimatedDurationSecs: i.number().optional(),
             dueTimes: i.any().optional(),
+            estimatedDurationSecs: i.number().optional(),
             exdates: i.json().optional(),
             imageUrl: i.any().optional(),
             isJoint: i.boolean().optional(),
@@ -214,6 +231,44 @@ const _schema = i.schema({
             timingMode: i.string().indexed().optional(),
             title: i.string(),
             weight: i.number().optional(),
+        }),
+        contentAttachments: i.entity({
+            blurhash: i.string().optional(),
+            createdAt: i.string().indexed(),
+            durationSec: i.number().optional(),
+            height: i.number().optional(),
+            kind: i.string().optional(),
+            name: i.string(),
+            sizeBytes: i.number().optional(),
+            thumbnailHeight: i.number().optional(),
+            thumbnailUrl: i.string().optional(),
+            thumbnailWidth: i.number().optional(),
+            type: i.string(),
+            updatedAt: i.string().indexed(),
+            url: i.string(),
+            waveformPeaks: i.json().optional(),
+            width: i.number().optional(),
+        }),
+        contentCategories: i.entity({
+            createdAt: i.string().indexed(),
+            defaultDurationMs: i.number(),
+            loopWhenEmpty: i.boolean().indexed().optional(),
+            name: i.string(),
+            slug: i.string().unique().indexed(),
+            updatedAt: i.string().indexed(),
+        }),
+        contentQueueItems: i.entity({
+            archivedAt: i.string().indexed().optional(),
+            createdAt: i.string().indexed(),
+            durationMs: i.number().optional(),
+            linkUrl: i.string().optional(),
+            liveAt: i.string().indexed().optional(),
+            liveUntil: i.string().indexed().optional(),
+            richTextContent: i.string().optional(),
+            sortOrder: i.number().indexed(),
+            status: i.string().indexed(),
+            title: i.string(),
+            updatedAt: i.string().indexed(),
         }),
         dashboardConfigs: i.entity({
             disabledWidgets: i.any().optional(),
@@ -250,7 +305,7 @@ const _schema = i.schema({
             updatedAt: i.string().indexed(),
         }),
         familyDashboardWidgets: i.entity({
-            config: i.any().optional(),
+            config: i.json().optional(),
             createdAt: i.string().indexed(),
             h: i.number(),
             updatedAt: i.string().indexed(),
@@ -282,6 +337,21 @@ const _schema = i.schema({
             role: i.string().optional(),
             viewShowChoreDescriptions: i.boolean().optional(),
             viewShowTaskDetails: i.boolean().optional(),
+        }),
+        familyRules: i.entity({
+            activeVersionId: i.string().indexed(),
+            createdAt: i.string().indexed(),
+            isArchived: i.boolean().indexed(),
+            sortOrder: i.number().indexed(),
+            title: i.string(),
+            updatedAt: i.string().indexed(),
+        }),
+        familyRuleVersions: i.entity({
+            createdAt: i.string().indexed(),
+            createdByFamilyMemberId: i.string().indexed().optional(),
+            editNote: i.string().optional(),
+            richTextContent: i.string(),
+            versionNumber: i.number().indexed(),
         }),
         gradeTypes: i.entity({
             createdAt: i.number().indexed(),
@@ -565,70 +635,6 @@ const _schema = i.schema({
             symbolPlacement: i.string(),
             symbolSpacing: i.boolean().optional(),
         }),
-        contentCategories: i.entity({
-            name: i.string(),
-            slug: i.string().unique().indexed(),
-            defaultDurationMs: i.number(),
-            loopWhenEmpty: i.boolean().optional().indexed(),
-            createdAt: i.string().indexed(),
-            updatedAt: i.string().indexed(),
-        }),
-        contentQueueItems: i.entity({
-            title: i.string(),
-            richTextContent: i.string().optional(),
-            linkUrl: i.string().optional(),
-            status: i.string().indexed(),
-            sortOrder: i.number().indexed(),
-            durationMs: i.number().optional(),
-            liveAt: i.string().indexed().optional(),
-            liveUntil: i.string().indexed().optional(),
-            archivedAt: i.string().indexed().optional(),
-            createdAt: i.string().indexed(),
-            updatedAt: i.string().indexed(),
-        }),
-        announcements: i.entity({
-            title: i.string(),
-            richTextContent: i.string().optional(),
-            linkUrl: i.string().optional(),
-            expiresAt: i.string().indexed().optional(),
-            isActive: i.boolean().indexed(),
-            archivedAt: i.string().indexed().optional(),
-            createdAt: i.string().indexed(),
-            updatedAt: i.string().indexed(),
-            createdByFamilyMemberId: i.string().indexed().optional(),
-        }),
-        familyRules: i.entity({
-            title: i.string(),
-            sortOrder: i.number().indexed(),
-            activeVersionId: i.string().indexed(),
-            isArchived: i.boolean().indexed(),
-            createdAt: i.string().indexed(),
-            updatedAt: i.string().indexed(),
-        }),
-        familyRuleVersions: i.entity({
-            richTextContent: i.string(),
-            versionNumber: i.number().indexed(),
-            editNote: i.string().optional(),
-            createdByFamilyMemberId: i.string().indexed().optional(),
-            createdAt: i.string().indexed(),
-        }),
-        contentAttachments: i.entity({
-            blurhash: i.string().optional(),
-            createdAt: i.string().indexed(),
-            durationSec: i.number().optional(),
-            height: i.number().optional(),
-            kind: i.string().optional(),
-            name: i.string(),
-            sizeBytes: i.number().optional(),
-            thumbnailHeight: i.number().optional(),
-            thumbnailUrl: i.string().optional(),
-            thumbnailWidth: i.number().optional(),
-            type: i.string(),
-            updatedAt: i.string().indexed(),
-            url: i.string(),
-            waveformPeaks: i.any().optional(),
-            width: i.number().optional(),
-        }),
     },
     links: {
         $streams$files: {
@@ -705,6 +711,18 @@ const _schema = i.schema({
                 label: 'outgoingTransfers',
             },
         },
+        announcementsAttachments: {
+            forward: {
+                on: 'announcements',
+                has: 'many',
+                label: 'attachments',
+            },
+            reverse: {
+                on: 'contentAttachments',
+                has: 'one',
+                label: 'announcement',
+            },
+        },
         calendarItemsPertainsTo: {
             forward: {
                 on: 'calendarItems',
@@ -753,6 +771,30 @@ const _schema = i.schema({
                 label: 'markedCompletions',
             },
         },
+        choreManualStartsChore: {
+            forward: {
+                on: 'choreManualStarts',
+                has: 'one',
+                label: 'chore',
+            },
+            reverse: {
+                on: 'chores',
+                has: 'many',
+                label: 'manualStarts',
+            },
+        },
+        choreManualStartsFamilyMember: {
+            forward: {
+                on: 'choreManualStarts',
+                has: 'one',
+                label: 'familyMember',
+            },
+            reverse: {
+                on: 'familyMembers',
+                has: 'many',
+                label: 'choreManualStarts',
+            },
+        },
         choresAssignments: {
             forward: {
                 on: 'chores',
@@ -775,6 +817,43 @@ const _schema = i.schema({
                 on: 'choreCompletions',
                 has: 'one',
                 label: 'chore',
+            },
+        },
+        contentQueueItemsAttachments: {
+            forward: {
+                on: 'contentQueueItems',
+                has: 'many',
+                label: 'attachments',
+            },
+            reverse: {
+                on: 'contentAttachments',
+                has: 'one',
+                label: 'contentQueueItem',
+            },
+        },
+        contentQueueItemsCategory: {
+            forward: {
+                on: 'contentQueueItems',
+                has: 'one',
+                label: 'category',
+                onDelete: 'cascade',
+            },
+            reverse: {
+                on: 'contentCategories',
+                has: 'many',
+                label: 'items',
+            },
+        },
+        contentQueueItemsCreatedBy: {
+            forward: {
+                on: 'contentQueueItems',
+                has: 'one',
+                label: 'createdBy',
+            },
+            reverse: {
+                on: 'familyMembers',
+                has: 'many',
+                label: 'createdContentQueueItems',
             },
         },
         dashboardConfigsFamilyMember: {
@@ -944,6 +1023,43 @@ const _schema = i.schema({
                 on: 'pushDevices',
                 has: 'one',
                 label: 'familyMember',
+            },
+        },
+        familyRulesVersions: {
+            forward: {
+                on: 'familyRules',
+                has: 'many',
+                label: 'versions',
+            },
+            reverse: {
+                on: 'familyRuleVersions',
+                has: 'one',
+                label: 'rule',
+                onDelete: 'cascade',
+            },
+        },
+        familyRuleVersionsAttachments: {
+            forward: {
+                on: 'familyRuleVersions',
+                has: 'many',
+                label: 'attachments',
+            },
+            reverse: {
+                on: 'contentAttachments',
+                has: 'one',
+                label: 'familyRuleVersion',
+            },
+        },
+        familyRuleVersionsPreviousVersion: {
+            forward: {
+                on: 'familyRuleVersions',
+                has: 'one',
+                label: 'previousVersion',
+            },
+            reverse: {
+                on: 'familyRuleVersions',
+                has: 'one',
+                label: 'nextVersion',
             },
         },
         historyEventsAttachments: {
@@ -1198,92 +1314,6 @@ const _schema = i.schema({
                 on: 'tasks',
                 has: 'many',
                 label: 'updates',
-            },
-        },
-        contentQueueItemsCategory: {
-            forward: {
-                on: 'contentQueueItems',
-                has: 'one',
-                label: 'category',
-                onDelete: 'cascade',
-            },
-            reverse: {
-                on: 'contentCategories',
-                has: 'many',
-                label: 'items',
-            },
-        },
-        contentQueueItemsAttachments: {
-            forward: {
-                on: 'contentQueueItems',
-                has: 'many',
-                label: 'attachments',
-            },
-            reverse: {
-                on: 'contentAttachments',
-                has: 'one',
-                label: 'contentQueueItem',
-            },
-        },
-        announcementsAttachments: {
-            forward: {
-                on: 'announcements',
-                has: 'many',
-                label: 'attachments',
-            },
-            reverse: {
-                on: 'contentAttachments',
-                has: 'one',
-                label: 'announcement',
-            },
-        },
-        familyRulesVersions: {
-            forward: {
-                on: 'familyRules',
-                has: 'many',
-                label: 'versions',
-            },
-            reverse: {
-                on: 'familyRuleVersions',
-                has: 'one',
-                label: 'rule',
-                onDelete: 'cascade',
-            },
-        },
-        familyRuleVersionsPrevious: {
-            forward: {
-                on: 'familyRuleVersions',
-                has: 'one',
-                label: 'previousVersion',
-            },
-            reverse: {
-                on: 'familyRuleVersions',
-                has: 'one',
-                label: 'nextVersion',
-            },
-        },
-        familyRuleVersionsAttachments: {
-            forward: {
-                on: 'familyRuleVersions',
-                has: 'many',
-                label: 'attachments',
-            },
-            reverse: {
-                on: 'contentAttachments',
-                has: 'one',
-                label: 'familyRuleVersion',
-            },
-        },
-        contentQueueItemsCreatedBy: {
-            forward: {
-                on: 'contentQueueItems',
-                has: 'one',
-                label: 'createdBy',
-            },
-            reverse: {
-                on: 'familyMembers',
-                has: 'many',
-                label: 'createdContentQueueItems',
             },
         },
     },
