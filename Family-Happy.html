@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>FamilyOS – Child Dashboard 🧸</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background: #f1f5f9;
+      font-family: system-ui, -apple-system, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+      padding: 20px 16px 40px;
+      color: #1e293b;
+    }
+
+    /* Main container – mobile-first card grid */
+    .dashboard {
+      max-width: 640px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* header */
+    .welcome-header {
+      background: white;
+      border-radius: 32px;
+      padding: 20px 24px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+      margin-bottom: 4px;
+      border: 1px solid rgba(255,255,255,0.3);
+    }
+    .welcome-header h1 {
+      font-size: 1.9rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #2b6e4f, #2c7a4d);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      letter-spacing: -0.3px;
+    }
+    .welcome-header p {
+      font-size: 1rem;
+      color: #475569;
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* card style */
+    .card {
+      background: white;
+      border-radius: 32px;
+      padding: 18px 20px 22px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+      transition: transform 0.15s ease, box-shadow 0.2s;
+      border: 1px solid #eef2ff;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 20px 30px -12px rgba(0, 0, 0, 0.12);
+    }
+
+    .card-title {
+      font-size: 1.6rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      border-left: 5px solid currentColor;
+      padding-left: 14px;
+    }
+
+    /* color-coded sections */
+    .allowance { border-top: 4px solid #10b981; }
+    .tasks { border-top: 4px solid #3b82f6; }
+    .messages { border-top: 4px solid #f97316; }
+    .concern { border-top: 4px solid #ef4444; }
+    .schedule { border-top: 4px solid #a855f7; }
+
+    /* allowance */
+    .balance {
+      background: #e6f9ed;
+      border-radius: 48px;
+      padding: 12px 20px;
+      text-align: center;
+      margin-bottom: 18px;
+    }
+    .balance span {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #0b5e2e;
+      display: block;
+    }
+    .balance small {
+      font-size: 0.9rem;
+      color: #2c6e49;
+    }
+    .btn-primary {
+      background: #10b981;
+      border: none;
+      width: 100%;
+      padding: 14px 0;
+      border-radius: 60px;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 6px rgba(16,185,129,0.3);
+    }
+    .btn-primary:active { transform: scale(0.97); background: #0e9f6e; }
+    .history-list {
+      background: #f9fafb;
+      border-radius: 24px;
+      padding: 8px 12px;
+    }
+    .history-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 0.9rem;
+    }
+    .history-item:last-child { border: none; }
+
+    /* tasks */
+    .task-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #f8fafc;
+      margin-bottom: 12px;
+      padding: 12px 16px;
+      border-radius: 28px;
+      transition: all 0.2s;
+    }
+    .task-text {
+      font-size: 1.1rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .completed-task {
+      text-decoration: line-through;
+      opacity: 0.65;
+    }
+    .btn-complete {
+      background: #3b82f6;
+      border: none;
+      padding: 8px 20px;
+      border-radius: 40px;
+      color: white;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: 0.15s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .btn-complete:active { transform: scale(0.96); background: #2563eb; }
+
+    /* messages */
+    .message-list {
+      background: #fff7ed;
+      border-radius: 28px;
+      padding: 8px 12px;
+      max-height: 240px;
+      overflow-y: auto;
+      margin-bottom: 16px;
+    }
+    .msg-bubble {
+      background: white;
+      padding: 10px 14px;
+      border-radius: 24px;
+      margin: 8px 0;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      border-left: 4px solid #f97316;
+      word-break: break-word;
+    }
+    .msg-sender {
+      font-weight: 700;
+      font-size: 0.8rem;
+      color: #ea580c;
+    }
+    .msg-text {
+      margin-top: 4px;
+      font-size: 0.95rem;
+    }
+    .input-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+    }
+    .input-group input {
+      flex: 1;
+      padding: 12px 16px;
+      border-radius: 60px;
+      border: 1px solid #e2e8f0;
+      font-size: 1rem;
+      background: #fefcf5;
+    }
+    .input-group button {
+      background: #f97316;
+      border: none;
+      padding: 0 18px;
+      border-radius: 60px;
+      font-weight: bold;
+      color: white;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+    .input-group button:active { transform: scale(0.96); background: #ea580c; }
+
+    /* concern */
+    .concern-area textarea {
+      width: 100%;
+      border-radius: 28px;
+      border: 1px solid #fecaca;
+      padding: 14px;
+      font-family: inherit;
+      font-size: 1rem;
+      resize: vertical;
+      background: #fffaf0;
+      margin-bottom: 12px;
+    }
+    .btn-concern {
+      background: #ef4444;
+      width: 100%;
+      border: none;
+      padding: 14px;
+      border-radius: 60px;
+      font-weight: bold;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .btn-concern:active { transform: scale(0.97); background: #dc2626; }
+    .confirm-toast {
+      background: #fee2e2;
+      border-radius: 40px;
+      margin-top: 12px;
+      padding: 10px;
+      text-align: center;
+      color: #b91c1c;
+      font-weight: 500;
+      font-size: 0.85rem;
+      transition: 0.2s;
+    }
+
+    /* schedule chips */
+    .schedule-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .event {
+      background: #f3e8ff;
+      padding: 10px 16px;
+      border-radius: 30px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 500;
+    }
+
+    hr {
+      margin: 6px 0;
+    }
+    button {
+      font-family: inherit;
+    }
+    @media (max-width: 480px) {
+      body { padding: 16px 12px 32px; }
+      .card-title { font-size: 1.4rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="dashboard">
+  <!-- welcome header -->
+  <div class="welcome-header">
+    <h1>👋 Welcome, Alex!</h1>
+    <p>⭐ Your daily FamilyOS hub · stay awesome 🚀</p>
+  </div>
+
+  <!-- 💰 ALLOWANCE SECTION -->
+  <div class="card allowance">
+    <div class="card-title" style="color: #10b981;">💰 Allowance</div>
+    <div class="balance">
+      <span id="balanceAmount">₱1,500</span>
+      <small>current balance</small>
+    </div>
+    <button class="btn-primary" id="requestAllowanceBtn">✨ Request Allowance ✨</button>
+    <div class="history-list">
+      <div style="font-weight: 600; margin-bottom: 6px;">📜 Recent transactions</div>
+      <div id="transactionHistory">
+        <!-- static demo data will be injected via js but also static fallback -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 📋 TASKS SECTION -->
+  <div class="card tasks">
+    <div class="card-title" style="color: #3b82f6;">📋 Tasks</div>
+    <div id="tasksContainer">
+      <!-- dynamic task list -->
+    </div>
+  </div>
+
+  <!-- 💬 MESSAGING SYSTEM -->
+  <div class="card messages">
+    <div class="card-title" style="color: #f97316;">💬 Messages</div>
+    <div class="message-list" id="messageList">
+      <!-- messages injected here -->
+    </div>
+    <div class="input-group">
+      <input type="text" id="messageInput" placeholder="Write a message to Mom/Dad..." autocomplete="off">
+      <button id="sendMsgBtn">Send 📨</button>
+    </div>
+  </div>
+
+  <!-- 🙋 CONCERN SYSTEM -->
+  <div class="card concern">
+    <div class="card-title" style="color: #ef4444;">🙋 Concern</div>
+    <div class="concern-area">
+      <textarea id="concernText" rows="2" placeholder="Something worrying you? Tell your parent... 💭"></textarea>
+      <button class="btn-concern" id="sendConcernBtn">⚠️ Send Concern ⚠️</button>
+      <div id="concernConfirmMsg" class="confirm-toast" style="display: none;"></div>
+    </div>
+  </div>
+
+  <!-- 📅 SIMPLE SCHEDULE (optional but preferred) -->
+  <div class="card schedule">
+    <div class="card-title" style="color: #a855f7;">📅 Upcoming</div>
+    <div class="schedule-list">
+      <div class="event">📚 Science project due · Fri, Apr 14</div>
+      <div class="event">⚽ Soccer practice · Mon & Wed 4pm</div>
+      <div class="event">🎨 Art club · Thursday 3:30pm</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // -------------------------------
+  // 🔧 MOCK DATA & GLOBAL STATE
+  // -------------------------------
+  let currentBalance = 1500;      // ₱
+  let transactionHistory = [
+    { id: 1, description: "Weekly allowance +₱200", amount: "+200", date: "Apr 5" },
+    { id: 2, description: "Chore bonus +₱50", amount: "+50", date: "Apr 3" },
+    { id: 3, description: "Snack -₱30", amount: "-30", date: "Apr 2" },
+  ];
+
+  // tasks array: each task = { id, text, completed }
+  let tasks = [
+    { id: 101, text: "📖 Do Homework", completed: false },
+    { id: 102, text: "🧹 Clean Room", completed: false },
+    { id: 103, text: "🚮 Take out trash", completed: false },
+  ];
+
+  // messages array (parent ↔ child)
+  let messages = [
+    { id: 1, sender: "Mom", text: "Don't forget your violin lesson! 🎻", timestamp: "10:30 AM" },
+    { id: 2, sender: "Alex", text: "Okay mom, I'll practice after homework ✅", timestamp: "10:32 AM" },
+    { id: 3, sender: "Dad", text: "Great job on your test! Proud of you 👏", timestamp: "Yesterday" },
+  ];
+
+  // -------------------------------
+  // 🖥️ DOM ELEMENTS
+  // -------------------------------
+  const balanceEl = document.getElementById("balanceAmount");
+  const transactionContainer = document.getElementById("transactionHistory");
+  const tasksContainer = document.getElementById("tasksContainer");
+  const messageListEl = document.getElementById("messageList");
+  const messageInput = document.getElementById("messageInput");
+  const sendMsgBtn = document.getElementById("sendMsgBtn");
+  const requestBtn = document.getElementById("requestAllowanceBtn");
+  const concernTextarea = document.getElementById("concernText");
+  const sendConcernBtn = document.getElementById("sendConcernBtn");
+  const concernConfirmMsgDiv = document.getElementById("concernConfirmMsg");
+
+  // -------------------------------
+  // 💰 RENDER ALLOWANCE (balance + history)
+  // -------------------------------
+  function renderAllowance() {
+    balanceEl.innerText = `₱${currentBalance.toLocaleString()}`;
+    if (transactionContainer) {
+      transactionContainer.innerHTML = "";
+      transactionHistory.forEach(tx => {
+        const txDiv = document.createElement("div");
+        txDiv.className = "history-item";
+        txDiv.innerHTML = `
+          <span>${tx.description}</span>
+          <span style="font-weight:600; color:${tx.amount.startsWith('+') ? '#10b981' : '#ef4444'}">${tx.amount}</span>
+        `;
+        transactionContainer.appendChild(txDiv);
+      });
+    }
+  }
+
+  // Add transaction helper (frontend simulation)
+  function addTransaction(desc, amountNum, isPositive) {
+    const sign = isPositive ? "+" : "-";
+    const absAmount = Math.abs(amountNum);
+    const newTx = {
+      id: Date.now(),
+      description: desc,
+      amount: `${sign}₱${absAmount}`,
+      date: new Date().toLocaleDateString()
+    };
+    transactionHistory.unshift(newTx);  // newest first
+    if (transactionHistory.length > 8) transactionHistory.pop();
+    renderAllowance();
+  }
+
+  // Request allowance logic: increase balance and record transaction
+  function requestAllowance() {
+    const allowanceAmount = 150;  // ₱150 each request
+    currentBalance += allowanceAmount;
+    addTransaction(`Allowance request +₱${allowanceAmount}`, allowanceAmount, true);
+    renderAllowance();
+    // small micro animation feedback (visual)
+    const btnReq = document.getElementById("requestAllowanceBtn");
+    btnReq.style.transform = "scale(0.96)";
+    setTimeout(() => { if(btnReq) btnReq.style.transform = ""; }, 150);
+  }
+
+  // -------------------------------
+  // 📋 TASKS RENDER & COMPLETE LOGIC
+  // -------------------------------
+  function renderTasks() {
+    tasksContainer.innerHTML = "";
+    tasks.forEach(task => {
+      const taskDiv = document.createElement("div");
+      taskDiv.className = "task-item";
+      const taskTextSpan = document.createElement("span");
+      taskTextSpan.className = "task-text";
+      taskTextSpan.innerHTML = task.completed ? `✅ ${task.text}` : `🔘 ${task.text}`;
+      if (task.completed) taskTextSpan.classList.add("completed-task");
+      const completeBtn = document.createElement("button");
+      completeBtn.innerText = task.completed ? "✔️ Done" : "Complete";
+      completeBtn.className = "btn-complete";
+      completeBtn.style.background = task.completed ? "#9ca3af" : "#3b82f6";
+      completeBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleTaskComplete(task.id);
+      });
+      taskDiv.appendChild(taskTextSpan);
+      taskDiv.appendChild(completeBtn);
+      tasksContainer.appendChild(taskDiv);
+    });
+  }
+
+  function toggleTaskComplete(taskId) {
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+      task.completed = !task.completed;
+      renderTasks();
+      // future firebase placeholder: updateTaskInDatabase(taskId, task.completed)
+      updateTaskInDatabase(taskId, task.completed);
+    }
+  }
+
+  // -------------------------------
+  // 💬 MESSAGING SYSTEM (frontend only)
+  // -------------------------------
+  function renderMessages() {
+    messageListEl.innerHTML = "";
+    messages.slice().reverse().forEach(msg => {   // newest at bottom, but we show newest at bottom? Actually we want latest at bottom? We'll show chronological top to bottom with latest at bottom, easier for kids.
+      // reverse display to show oldest first? Actually we want recent at bottom but readability: keep order as stored (oldest first). Our stored array is chronological. We'll display in order.
+      // I'll re-render in original order (oldest first) so new messages appear at bottom.
+    });
+    // better: render in stored order (ascending)
+    messages.forEach(msg => {
+      const bubble = document.createElement("div");
+      bubble.className = "msg-bubble";
+      bubble.innerHTML = `
+        <div class="msg-sender">${msg.sender === "Alex" ? "🧒 You" : `👨‍👩 ${msg.sender}`}</div>
+        <div class="msg-text">${escapeHtml(msg.text)}</div>
+        <div style="font-size:0.7rem; color:#94a3b8; margin-top:4px;">${msg.timestamp || "just now"}</div>
+      `;
+      messageListEl.appendChild(bubble);
+    });
+    // auto scroll to bottom
+    messageListEl.scrollTop = messageListEl.scrollHeight;
+  }
+
+  function addNewMessage(text, sender = "Alex") {
+    if (!text.trim()) return;
+    const newMsg = {
+      id: Date.now(),
+      sender: sender,
+      text: text.trim(),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute:'2-digit' })
+    };
+    messages.push(newMsg);
+    renderMessages();
+    // firebase placeholder
+    addMessageToDatabase(newMsg);
+    // scroll again
+    messageListEl.scrollTop = messageListEl.scrollHeight;
+  }
+
+  // helper to escape html
+  function escapeHtml(str) {
+    return str.replace(/[&<>]/g, function(m) {
+      if (m === '&') return '&amp;';
+      if (m === '<') return '&lt;';
+      if (m === '>') return '&gt;';
+      return m;
+    }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+      return c;
+    });
+  }
+
+  // -------------------------------
+  // 🙋 CONCERN SYSTEM (confirmation + simulation)
+  // -------------------------------
+  function sendConcern() {
+    const concernMsg = concernTextarea.value.trim();
+    if (concernMsg === "") {
+      concernConfirmMsgDiv.style.display = "block";
+      concernConfirmMsgDiv.innerText = "📢 Please write something before sending!";
+      concernConfirmMsgDiv.style.backgroundColor = "#fff1f0";
+      setTimeout(() => {
+        if(concernConfirmMsgDiv) concernConfirmMsgDiv.style.display = "none";
+      }, 2000);
+      return;
+    }
+    // show confirmation message with animation
+    concernConfirmMsgDiv.style.display = "block";
+    concernConfirmMsgDiv.innerText = `✅ Concern sent! Parent will see: “${escapeHtml(concernMsg.substring(0, 60))}” 🙏`;
+    concernConfirmMsgDiv.style.backgroundColor = "#e6f7e6";
+    concernConfirmMsgDiv.style.color = "#166534";
+    // Simulate sending to backend
+    sendConcernToDatabase(concernMsg);
+    // Clear textarea
+    concernTextarea.value = "";
+    setTimeout(() => {
+      if(concernConfirmMsgDiv) concernConfirmMsgDiv.style.display = "none";
+    }, 3000);
+  }
+
+  // -------------------------------
+  // 📅 Firebase placeholder functions (production-ready)
+  // -------------------------------
+  // For allowance
+  function updateBalanceInDatabase(newBalance) {
+    // FUTURE: firebase update doc
+    console.log("[Firebase Placeholder] updateBalanceInDatabase:", newBalance);
+  }
+  // For tasks
+  function updateTaskInDatabase(taskId, isCompleted) {
+    console.log(`[Firebase] updateTask: task ${taskId} completed=${isCompleted}`);
+  }
+  // For messages
+  function addMessageToDatabase(messageObj) {
+    console.log("[Firebase] addMessageToDatabase:", messageObj);
+  }
+  // For concern
+  function sendConcernToDatabase(concernText) {
+    console.log("[Firebase] sendConcernToDatabase:", concernText);
+  }
+  // Fetch tasks from database (placeholder, will be used later)
+  function fetchTasksFromDatabase() {
+    console.log("[Firebase] fetchTasksFromDatabase called — currently using static data");
+    return tasks;
+  }
+  // Additional placeholder for allowance requests sync
+  function syncAllowanceWithFirebase() {
+    console.log("[Firebase] sync allowance");
+  }
+
+  // -------------------------------
+  // 🧸 INITIAL PAGE LOAD & EVENT HANDLERS
+  // -------------------------------
+  function init() {
+    renderAllowance();
+    renderTasks();
+    renderMessages();
+
+    // Request allowance click
+    requestBtn.addEventListener("click", () => {
+      requestAllowance();
+      // firebase placeholder call for updating balance
+      updateBalanceInDatabase(currentBalance);
+    });
+
+    // Send message logic
+    sendMsgBtn.addEventListener("click", () => {
+      const msgText = messageInput.value.trim();
+      if (msgText === "") return;
+      addNewMessage(msgText, "Alex");
+      messageInput.value = "";
+    });
+    // press enter on message input
+    messageInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        sendMsgBtn.click();
+      }
+    });
+
+    // Concern button event
+    sendConcernBtn.addEventListener("click", sendConcern);
+
+    // extra animation: simulate a little confetti effect for task completion? not needed but extra friendly
+    // For demonstration, we have already animations on buttons.
+  }
+
+  // initialize dashboard
+  init();
+
+  // optional: simple console greeting
+  console.log("🧸 FamilyOS Child Dashboard ready — Firebase hooks prepared");
+</script>
+</body>
+</html>
